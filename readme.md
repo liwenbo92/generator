@@ -1,6 +1,6 @@
 
 ## dota2 自走棋UI插件修改版（更新至熊猫人版本） 
-fork from <a href="https://github.com/auto-chess-ui-mod/source" >【原项目地址】</a>
+Fork From <a href="https://github.com/auto-chess-ui-mod/source" >【原项目地址】</a>
 
 
 
