@@ -98,6 +98,28 @@ function getCurrentChamps() {
         counts[num] = counts[num] ? counts[num] + 1 : 1;
     }
 
+    //output counts in console with sorted.
+    var view_counts = Object.keys(counts).map(function(key){
+        return [key, counts[key]]
+    });
+    view_counts.sort(function(first, second) {
+        return second[1] - first[1];
+    });
+
+    
+    var user_hero_name_list = [];
+    $.Each(user_list, function(item){
+        user_hero_name_list.push(hero_dict[item]['name']);
+    })
+    $.Msg(user_hero_name_list.join(','));
+    for (var k in view_counts) {
+        var my_hero_flag = '';
+        if(user_hero_name_list.includes(view_counts[k][0])) {
+            my_hero_flag = '[*]';
+        }
+        $.Msg(my_hero_flag +view_counts[k][0] + ' : ' + view_counts[k][1])
+    }
+
     return counts
 };
 
@@ -120,8 +142,28 @@ function get_total_size_of_pool(hero_counts_input, courier_level_input) {
             }
         }); 
     } else {
+        // $.Each(hero_id_list, function(item) {
+        //     var tmp_ele = find_dota_hud_element(item);
+        //     if (tmp_ele && hero_out_of_pool.indexOf(item) == -1) {
+        //         var tmp_cost = hero_dict[item]['cost'];
+        //         var tmp_hero_pool = hero_pool_counts[tmp_cost];
+        //         var champ_name = hero_dict[item]['name'];
+        
+        //         if (champ_name in hero_counts_input) {
+        //             var hero_in_play = hero_counts_input[champ_name];
+        //         } else {
+        //             var hero_in_play = 0
+        //         }
+
+        //         size_cost_pool[tmp_cost] = size_cost_pool[tmp_cost] + (tmp_hero_pool - hero_in_play);
+        //     } else {
+        //         $.Msg('find item pass')                
+        //     }
+        // });
+        // the method above  doesn't work.
         $.Each(hero_id_list, function(item) {
-            var tmp_ele = find_dota_hud_element(item);
+            // $.Msg(item + '' + hero_dict[item]['name']);
+            var tmp_ele = hero_dict[item]['name'] ? true : false;
             if (tmp_ele && hero_out_of_pool.indexOf(item) == -1) {
                 var tmp_cost = hero_dict[item]['cost'];
                 var tmp_hero_pool = hero_pool_counts[tmp_cost];
@@ -134,10 +176,16 @@ function get_total_size_of_pool(hero_counts_input, courier_level_input) {
                 }
 
                 size_cost_pool[tmp_cost] = size_cost_pool[tmp_cost] + (tmp_hero_pool - hero_in_play);
-            } 
+            }
         });
     }
-
+    $.Msg('size_cost_pool_func:');
+    for (var k in size_cost_pool) {
+        if (size_cost_pool[k] == 0) {
+            size_cost_pool[k] = size_cost_pool_max[k]
+        } 
+        $.Msg(k + ' : ' + size_cost_pool[k]);
+    }
 
     return size_cost_pool; //size_total_pool
 }
@@ -215,7 +263,7 @@ function calculate_draw_prop(champ_input, hero_counts_input, courier_level_input
 
     var output = Math.round(prop_at_least_one * 100 * 10) / 10;   
 
-    if (champ_name == 'Io') {
+    if (champ_name == 'Io' || champ_name == '精灵守卫') {
         output = 1.5;
         perc_color ='#ffffff';
     }
@@ -223,78 +271,137 @@ function calculate_draw_prop(champ_input, hero_counts_input, courier_level_input
     return [output, perc_color]  ;
 }
 
+//Update display draw_prop method in Chess board.
+function update_list_draw_prop(hero_counts_input, size_cost_pool_input) {
+    for(var cost = 1; cost <=5; cost ++) {
+        tmp_eles = find_dota_hud_element('chess_board').FindChildrenWithClassTraverse('color-cost'+cost);
+        if (tmp_eles) {
+            for(var i in tmp_eles) {
+                var item_name = tmp_eles[i].text.replace('★', '').trim();
+                item_name = item_name.substring(item_name.indexOf("%") + 1);
+                // $.Msg(item_name);
+                var item = '';
+                for(var k in hero_dict) {
+                    if (hero_dict[k]['name'] == item_name) {
+                        item = k;
+                        break;
+                    }
+                }
+                if(item) {
+                    courier_level_round = Entities.GetLevel(courier_id);
+                    var tmp_ret = calculate_draw_prop(item, hero_counts_input, courier_level_round, size_cost_pool_input);
+                    var hero_perc_avail = tmp_ret[0].toString();
+                    var hero_in_play_str = '';
+                    if (hero_counts_input && hero_counts_input[item_name]) {
+                        hero_in_play_str = '{' + hero_counts_input[item_name].toString() + '}';
+                    }
+                    tmp_eles[i].text = hero_in_play_str + hero_perc_avail + '%' + item_name;
+                }
+            }
+        }
+    }
+}
+
 /*END-DRAWSTAT*/ 
 
 // Data inputs
 
-var hero_not_avail = ['chess_riki', 'chess_kael', 'chess_sk', 'chess_slark', 'chess_om'];
+var hero_not_avail = ['chess_sf', 'chess_lich', 'chess_kunkka'];
 var hero_out_of_pool = ['chess_io'];
 
 var size_cost_pool_max = {1 : 0, 2 : 0, 3 : 0, 4 : 0, 5 : 0}
 
 var eng_to_cn = {
-    'Abaddon': '死亡骑士',
-    'Alchemist': '炼金术士',
-    'Anti-mage': '敌法师',
-    'Axe': '斧王',
-    'Batrider': '蝙蝠骑士',
-    'Beastmaster': '兽王',
-    'Bounty Hunter': '赏金猎人',
-    'Chaos Knight': '混沌骑士',
-    'Clockwerk': '发条技师',
-    'Crystal Maiden': '水晶室女',
-    'Death Prophet': '死亡先知',
-    'Disruptor': '干扰者',
-    'Doom': '末日使者',
-    'Dragon Knight': '龙骑士',
-    'Drow Ranger': '卓尔游侠',
-    'Enchantress': '魅惑魔女',
-    'Enigma': '谜团',
-    'Furion': '先知',
-    'Gyrocopter': '矮人直升机',
-    'Io' : '精灵守卫',
-    'Juggernaut': '剑圣',
-    'Keeper of the Light': '光之守卫',
-    'Kunkka': '海军上将',
-    'Lich': '巫妖',
-    'Lina': '秀逗魔导士',
-    'Lone Druid': '利爪德鲁伊',
-    'Luna': '月之骑士', 
-    'Lycan': '狼人',
-    'Mars': '天界战神',
-    'Medusa': '蛇发女妖',
-    'Mirana': '月之女祭司',
-    'Morphling': '变体精灵', 
-    'Necrophos': '死灵法师',
-    'Ogre Magi': '食人魔魔法师',
-    'Omniknight': '全能骑士',
-    'Phantom Assassin': '幻影刺客',
-    'Puck': '精灵龙',
-    'Queen of Pain': '痛苦女王',
-    'Razor': '闪电幽魂',
-    'Shadow Fiend': '影魔',
-    'Shadow Shaman': '暗影萨满',
-    'Slardar': '鱼人守卫',
-    'Sniper': '狙击手',
-    'Techies': '地精工程师',
-    'Templar Assassin': '圣堂刺客',
-    'Terrorblade': '灵魂守卫',
-    'Tidehunter': '潮汐猎人',
-    'Timbersaw': '伐木机',
-    'Tinker': '修补匠',
-    'Tiny': '小小',
-    'Treant Protector': '树精卫士',
-    'Troll Warlord': '巨魔战将',
-    'Tusk': '巨牙海民',
-    'Venomancer': '剧毒术士',
-    'Viper': '冥界亚龙',
-    'Windranger': '风行者', 
-    'Witch Doctor': '巫医',
-    'Zeus': '众神之王',
+    'Abaddon': '死亡骑士', //abaddon
+    'Alchemist': '炼金术士', //ga
+    'Anti-mage': '敌法师', //am
+    'Axe': '斧王', //axe
+    'Batrider': '蝙蝠骑士', //bat
+    'Beastmaster': '兽王', //bm
+    'Bounty Hunter': '赏金猎人', //bh
+    'Chaos Knight': '混沌骑士', //ck
+    'Clockwerk': '发条技师', //clock
+    'Crystal Maiden': '水晶室女', //cm
+    'Death Prophet': '死亡先知', //dp
+    'Disruptor': '干扰者', //disruptor
+    'Doom': '末日使者', //doom
+    'Dragon Knight': '龙骑士', //dk
+    'Drow Ranger': '卓尔游侠', //dr
+    'Enchantress': '魅惑魔女',  //eh
+    'Enigma': '谜团', //enigma
+    'Furion': '先知', //fur
+    'Gyrocopter': '矮人直升机', //gyro
+    'Io' : '精灵守卫', //io
+    'Juggernaut': '剑圣', //jugg
+    'Keeper of the Light': '光之守卫', //light
+    'Kunkka': '海军上将', //kunkka
+    // 'Lich': '巫妖', //lich
+    'Lina': '秀逗魔导士', //lina
+    'Lone Druid': '利爪德鲁伊', //ld
+    'Luna': '月之骑士',  //luna
+    'Lycan': '狼人', //lyc
+    'Mars': '天界战神', //mars
+    'Medusa': '蛇发女妖', //medusa
+    'Mirana': '月之女祭司', //pom
+    'Morphling': '变体精灵', //morph
+    'Necrophos': '死灵法师', //nec
+    'Ogre Magi': '食人魔魔法师', //om
+    'Omniknight': '全能骑士', //ok
+    'Phantom Assassin': '幻影刺客', //pa
+    'Puck': '精灵龙', //puck
+    'Queen of Pain': '痛苦女王', //qop
+    'Razor': '闪电幽魂', //razor
+    'Shadow Fiend': '影魔', //sf
+    'Shadow Shaman': '暗影萨满', //ss
+    'Slardar': '鱼人守卫', //slardar
+    'Sniper': '狙击手', //sniper
+    'Techies': '地精工程师', //tech
+    'Templar Assassin': '圣堂刺客', //ta
+    'Terrorblade': '灵魂守卫', //tb
+    'Tidehunter': '潮汐猎人', //th
+    'Timbersaw': '伐木机', //shredder
+    'Tinker': '修补匠', //tk
+    'Tiny': '小小', //tiny
+    'Treant Protector': '树精卫士', //tp
+    'Troll Warlord': '巨魔战将', //troll
+    'Tusk': '巨牙海民', //tusk
+    'Venomancer': '剧毒术士', //veno
+    'Viper': '冥界亚龙', //viper
+    'Windranger': '风行者', //wr
+    'Witch Doctor': '巫医', //wd
+    'Zeus': '众神之王', //zeus
     'Grimstroke': '天涯墨客',
-    'Dazzle': '暗影牧师',
-    'Sven' : '流浪剑客',
-    'Winter Wyvern': '寒冬飞龙',
+    'Dazzle': '暗影牧师', //dazzle
+    'Sven' : '流浪剑客', //sven
+    'Winter Wyvern': '寒冬飞龙', //ww
+
+    'Snapfire': '电炎绝手', //snap
+    'Huskar':'神灵武士', //huskar
+    'Bloodseeker': '血魔', //bs
+    'Sand King': '沙王', //sk
+    'Slark': '鱼人夜行者', //slark
+    'Invoker': '祈求者', //kael
+    'Visage':'死灵飞龙', //visage
+    'Rubick': '大魔导师', //rubick
+    'Pudge': '屠夫', //pudge
+    'Lion': '恶魔巫师', //lion
+    'Grimstroke': '天涯墨客', //gs
+    'Oracle': '神谕者', //oracle
+    'Nyx Assassin': '司夜刺客', //na
+    'Broodmother': '育母蜘蛛', //br
+    'Legion Commander': '军团指挥官', //lc
+    'Chen': '上帝之手', //chen
+    'Jakiro': '双头龙', //thd
+    'Dark Willow': '邪影芳灵', //dw
+    'Brewmaster': '熊猫酒仙', //brew
+    'Ember Spirit': '灰烬之灵', //ember
+    'Storm Spirit': '风暴之灵', //storm
+  
+    //'Riki' 3
+    //'fv'3
+    //'mk' 5
+    
+
 }
 
 var tier_dict = {
@@ -355,23 +462,51 @@ var tier_dict = {
     'Viper': 'D',
     'Windranger': 'B',
     'Witch Doctor': 'C',
-    'Zeus': 'A'
+    'Zeus': 'A',
+
+    'Snapfire':'-',
+    'Huskar':'-',
+    'Bloodseeker':'-',
+    'Sand King':'-',
+    'Invoker':'-',
+    'Sven': '-',
+    'Visage': '-',
+    'Winter Wyvern': '-',
+    'Slark': '-',
+    'Rubick': '-',
+    'Pudge': '-',
+    'Lion': '-',
+    'Grimstroke': '-',
+    'Oracle': '-',
+    'Nyx Assassin': '-',
+    'Broodmother': '-',
+    'Legion Commander': '-',
+    'Chen': '-',
+    'Jakiro': '-',
+    'Dark Willow': '-',
+    'Brewmaster': '-',
+    'Storm Spirit': '-',
+    'Ember Spirit': '-'
+    // 'Lich':'-',
+
+
 };
 
 // Death Prophet (5), Treant (3), Mirana (2), Crystal Maiden (2)  might be wrong cost!
 
-var hero_dict = {'chess_abaddon': {'cost': 3, 'level': 1, 'name': 'Abaddon'},
-'chess_abaddon1': {'cost': 3, 'level': 2, 'name': 'Abaddon'},
-'chess_abaddon11': {'cost': 3, 'level': 3, 'name': 'Abaddon'},
+var hero_dict = {
+'chess_abaddon': {'cost': 2, 'level': 1, 'name': 'Abaddon'},
+'chess_abaddon1': {'cost': 2, 'level': 2, 'name': 'Abaddon'},
+'chess_abaddon11': {'cost': 2, 'level': 3, 'name': 'Abaddon'},
 'chess_am': {'cost': 1, 'level': 1, 'name': 'Anti-mage'},
 'chess_am1': {'cost': 1, 'level': 2, 'name': 'Anti-mage'},
 'chess_am11': {'cost': 1, 'level': 3, 'name': 'Anti-mage'},
 'chess_axe': {'cost': 1, 'level': 1, 'name': 'Axe'},
 'chess_axe1': {'cost': 1, 'level': 2, 'name': 'Axe'},
 'chess_axe11': {'cost': 1, 'level': 3, 'name': 'Axe'},
-'chess_bat': {'cost': 1, 'level': 1, 'name': 'Batrider'},
-'chess_bat1': {'cost': 1, 'level': 2, 'name': 'Batrider'},
-'chess_bat11': {'cost': 1, 'level': 3, 'name': 'Batrider'},
+'chess_bat': {'cost': 2, 'level': 1, 'name': 'Batrider'},
+'chess_bat1': {'cost': 2, 'level': 2, 'name': 'Batrider'},
+'chess_bat11': {'cost': 2, 'level': 3, 'name': 'Batrider'},
 'chess_bh': {'cost': 1, 'level': 1, 'name': 'Bounty Hunter'},
 'chess_bh1': {'cost': 1, 'level': 2, 'name': 'Bounty Hunter'},
 'chess_bh11': {'cost': 1, 'level': 3, 'name': 'Bounty Hunter'},
@@ -384,24 +519,24 @@ var hero_dict = {'chess_abaddon': {'cost': 3, 'level': 1, 'name': 'Abaddon'},
 'chess_clock': {'cost': 1, 'level': 1, 'name': 'Clockwerk'},
 'chess_clock1': {'cost': 1, 'level': 2, 'name': 'Clockwerk'},
 'chess_clock11': {'cost': 1, 'level': 3, 'name': 'Clockwerk'},
-'chess_cm': {'cost': 2, 'level': 1, 'name': 'Crystal Maiden'},
-'chess_cm1': {'cost': 2, 'level': 2, 'name': 'Crystal Maiden'},
-'chess_cm11': {'cost': 2, 'level': 3, 'name': 'Crystal Maiden'},
-'chess_dazzle': {'cost': 3, 'level': 1, 'name': 'Dazzle'},
-'chess_dazzle1': {'cost': 3, 'level': 2, 'name': 'Dazzle'},
-'chess_dazzle11': {'cost': 3, 'level': 3, 'name': 'Dazzle'},
-'chess_disruptor': {'cost': 4, 'level': 1, 'name': 'Disruptor'},
-'chess_disruptor1': {'cost': 4, 'level': 2, 'name': 'Disruptor'},
-'chess_disruptor11': {'cost': 4, 'level': 3, 'name': 'Disruptor'},
+'chess_cm': {'cost': 1, 'level': 1, 'name': 'Crystal Maiden'},
+'chess_cm1': {'cost': 1, 'level': 2, 'name': 'Crystal Maiden'},
+'chess_cm11': {'cost': 1, 'level': 3, 'name': 'Crystal Maiden'},
+'chess_dazzle': {'cost': 2, 'level': 1, 'name': 'Dazzle'},
+'chess_dazzle1': {'cost': 2, 'level': 2, 'name': 'Dazzle'},
+'chess_dazzle11': {'cost': 2, 'level': 3, 'name': 'Dazzle'},
+'chess_disruptor': {'cost': 5, 'level': 1, 'name': 'Disruptor'},
+'chess_disruptor1': {'cost': 5, 'level': 2, 'name': 'Disruptor'},
+'chess_disruptor11': {'cost': 5, 'level': 3, 'name': 'Disruptor'},
 'chess_dk': {'cost': 4, 'level': 1, 'name': 'Dragon Knight'},
 'chess_dk1': {'cost': 4, 'level': 2, 'name': 'Dragon Knight'},
 'chess_dk11': {'cost': 4, 'level': 3, 'name': 'Dragon Knight'},
 'chess_doom': {'cost': 4, 'level': 1, 'name': 'Doom'},
 'chess_doom1': {'cost': 4, 'level': 2, 'name': 'Doom'},
 'chess_doom11': {'cost': 4, 'level': 3, 'name': 'Doom'},
-'chess_dp': {'cost': 5, 'level': 1, 'name': 'Death'},
-'chess_dp1': {'cost': 5, 'level': 2, 'name': 'Death'},
-'chess_dp11': {'cost': 5, 'level': 3, 'name': 'Death'},
+'chess_dp': {'cost': 5, 'level': 1, 'name': 'Death Prophet'},
+'chess_dp1': {'cost': 5, 'level': 2, 'name': 'Death Prophet'},
+'chess_dp11': {'cost': 5, 'level': 3, 'name': 'Death Prophet'},
 'chess_dr': {'cost': 1, 'level': 1, 'name': 'Drow Ranger'},
 'chess_dr1': {'cost': 1, 'level': 2, 'name': 'Drow Ranger'},
 'chess_dr11': {'cost': 1, 'level': 3, 'name': 'Drow Ranger'},
@@ -426,27 +561,27 @@ var hero_dict = {'chess_abaddon': {'cost': 3, 'level': 1, 'name': 'Abaddon'},
 'chess_jugg': {'cost': 2, 'level': 1, 'name': 'Juggernaut'},
 'chess_jugg1': {'cost': 2, 'level': 2, 'name': 'Juggernaut'},
 'chess_jugg11': {'cost': 2, 'level': 3, 'name': 'Juggernaut'},
-'chess_kael': {'cost': 1, 'level': 1, 'name': 'Invoker'},
-'chess_kael1': {'cost': 1, 'level': 2, 'name': 'Invoker'},
-'chess_kael11': {'cost': 1, 'level': 3, 'name': 'Invoker'},
-'chess_kunkka': {'cost': 4, 'level': 1, 'name': 'Kunkka'},
-'chess_kunkka1': {'cost': 4, 'level': 2, 'name': 'Kunkka'},
-'chess_kunkka11': {'cost': 4, 'level': 3, 'name': 'Kunkka'},
+'chess_kael': {'cost': 5, 'level': 1, 'name': 'Invoker'},
+'chess_kael1': {'cost': 5, 'level': 2, 'name': 'Invoker'},
+'chess_kael11': {'cost': 5, 'level': 3, 'name': 'Invoker'},
+'chess_kunkka': {'cost': 5, 'level': 1, 'name': 'Kunkka'},
+'chess_kunkka1': {'cost': 5, 'level': 2, 'name': 'Kunkka'},
+'chess_kunkka11': {'cost': 5, 'level': 3, 'name': 'Kunkka'},
 'chess_ld': {'cost': 4, 'level': 1, 'name': 'Lone Druid'},
 'chess_ld1': {'cost': 4, 'level': 2, 'name': 'Lone Druid'},
 'chess_ld11': {'cost': 4, 'level': 3, 'name': 'Lone Druid'},
-'chess_lich': {'cost': 2, 'level': 1, 'name': 'Lich'},
-'chess_lich1': {'cost': 2, 'level': 2, 'name': 'Lich'},
-'chess_lich11': {'cost': 2, 'level': 3, 'name': 'Lich'},
+// 'chess_lich': {'cost': 2, 'level': 1, 'name': 'Lich'},
+// 'chess_lich1': {'cost': 2, 'level': 2, 'name': 'Lich'},
+// 'chess_lich11': {'cost': 2, 'level': 3, 'name': 'Lich'},
 'chess_light': {'cost': 4, 'level': 1, 'name': 'Keeper of the Light'},
 'chess_light1': {'cost': 4, 'level': 2, 'name': 'Keeper of the Light'},
 'chess_light11': {'cost': 4, 'level': 3, 'name': 'Keeper of the Light'},
 'chess_lina': {'cost': 3, 'level': 1, 'name': 'Lina'},
 'chess_lina1': {'cost': 3, 'level': 2, 'name': 'Lina'},
 'chess_lina11': {'cost': 3, 'level': 3, 'name': 'Lina'},
-'chess_luna': {'cost': 2, 'level': 1, 'name': 'Luna'},
-'chess_luna1': {'cost': 2, 'level': 2, 'name': 'Luna'},
-'chess_luna11': {'cost': 2, 'level': 3, 'name': 'Luna'},
+// 'chess_luna': {'cost': 2, 'level': 1, 'name': 'Luna'},
+// 'chess_luna1': {'cost': 2, 'level': 2, 'name': 'Luna'},
+// 'chess_luna11': {'cost': 2, 'level': 3, 'name': 'Luna'},
 'chess_lyc': {'cost': 3, 'level': 1, 'name': 'Lycan'},
 'chess_lyc1': {'cost': 3, 'level': 2, 'name': 'Lycan'},
 'chess_lyc11': {'cost': 3, 'level': 3, 'name': 'Lycan'},
@@ -465,45 +600,45 @@ var hero_dict = {'chess_abaddon': {'cost': 3, 'level': 1, 'name': 'Abaddon'},
 'chess_ok': {'cost': 3, 'level': 1, 'name': 'Omniknight'},
 'chess_ok1': {'cost': 3, 'level': 2, 'name': 'Omniknight'},
 'chess_ok11': {'cost': 3, 'level': 3, 'name': 'Omniknight'},
-'chess_om': {'cost': 1, 'level': 1, 'name': 'Ogre Magi'},
-'chess_om1': {'cost': 1, 'level': 2, 'name': 'Ogre Magi'},
-'chess_om11': {'cost': 1, 'level': 3, 'name': 'Ogre Magi'},
+'chess_om': {'cost': 2, 'level': 1, 'name': 'Ogre Magi'},
+'chess_om1': {'cost': 2, 'level': 2, 'name': 'Ogre Magi'},
+'chess_om11': {'cost': 2, 'level': 3, 'name': 'Ogre Magi'},
 'chess_pa': {'cost': 3, 'level': 1, 'name': 'Phantom Assassin'},
 'chess_pa1': {'cost': 3, 'level': 2, 'name': 'Phantom Assassin'},
 'chess_pa11': {'cost': 3, 'level': 3, 'name': 'Phantom Assassin'},
 'chess_pom': {'cost': 2, 'level': 1, 'name': 'Mirana'},
 'chess_pom1': {'cost': 2, 'level': 2, 'name': 'Mirana'},
 'chess_pom11': {'cost': 2, 'level': 3, 'name': 'Mirana'},
-'chess_puck': {'cost': 2, 'level': 1, 'name': 'Puck'},
-'chess_puck1': {'cost': 2, 'level': 2, 'name': 'Puck'},
-'chess_puck11': {'cost': 2, 'level': 3, 'name': 'Puck'},
-'chess_qop': {'cost': 2, 'level': 1, 'name': 'Queen of Pain'},
-'chess_qop1': {'cost': 2, 'level': 2, 'name': 'Queen of Pain'},
-'chess_qop11': {'cost': 2, 'level': 3, 'name': 'Queen of Pain'},
+// 'chess_puck': {'cost': 2, 'level': 1, 'name': 'Puck'},
+// 'chess_puck1': {'cost': 2, 'level': 2, 'name': 'Puck'},
+// 'chess_puck11': {'cost': 2, 'level': 3, 'name': 'Puck'},
+'chess_qop': {'cost': 5, 'level': 1, 'name': 'Queen of Pain'},
+'chess_qop1': {'cost': 5, 'level': 2, 'name': 'Queen of Pain'},
+'chess_qop11': {'cost': 5, 'level': 3, 'name': 'Queen of Pain'},
 'chess_razor': {'cost': 3, 'level': 1, 'name': 'Razor'},
 'chess_razor1': {'cost': 3, 'level': 2, 'name': 'Razor'},
 'chess_razor11': {'cost': 3, 'level': 3, 'name': 'Razor'},
-'chess_riki': {'cost': 1, 'level': 1, 'name': 'Riki'},
-'chess_riki1': {'cost': 1, 'level': 2, 'name': 'Riki'},
-'chess_riki11': {'cost': 1, 'level': 3, 'name': 'Riki'},
-'chess_sf': {'cost': 3, 'level': 1, 'name': 'Shadow Fiend'},
-'chess_sf1': {'cost': 3, 'level': 2, 'name': 'Shadow Fiend'},
-'chess_sf11': {'cost': 3, 'level': 3, 'name': 'Shadow Fiend'},
+// 'chess_riki': {'cost': 3, 'level': 1, 'name': 'Riki'},
+// 'chess_riki1': {'cost': 3, 'level': 2, 'name': 'Riki'},
+// 'chess_riki11': {'cost': 3, 'level': 3, 'name': 'Riki'},
+'chess_sf': {'cost': 2, 'level': 1, 'name': 'Shadow Fiend'},
+'chess_sf1': {'cost': 2, 'level': 2, 'name': 'Shadow Fiend'},
+'chess_sf11': {'cost': 2, 'level': 3, 'name': 'Shadow Fiend'},
 'chess_shredder': {'cost': 2, 'level': 1, 'name': 'Timbersaw'},
 'chess_shredder1': {'cost': 2, 'level': 2, 'name': 'Timbersaw'},
 'chess_shredder11': {'cost': 2, 'level': 3, 'name': 'Timbersaw'},
-'chess_sk': {'cost': 1, 'level': 1, 'name': 'Sand King'},
-'chess_sk1': {'cost': 1, 'level': 2, 'name': 'Sand King'},
-'chess_sk11': {'cost': 1, 'level': 3, 'name': 'Sand King'},
+'chess_sk': {'cost': 3, 'level': 1, 'name': 'Sand King'},
+'chess_sk1': {'cost': 3, 'level': 2, 'name': 'Sand King'},
+'chess_sk11': {'cost': 3, 'level': 3, 'name': 'Sand King'},
 'chess_slardar': {'cost': 2, 'level': 1, 'name': 'Slardar'},
 'chess_slardar1': {'cost': 2, 'level': 2, 'name': 'Slardar'},
 'chess_slardar11': {'cost': 2, 'level': 3, 'name': 'Slardar'},
-'chess_slark': {'cost': 1, 'level': 1, 'name': 'Slark'},
-'chess_slark1': {'cost': 1, 'level': 2, 'name': 'Slark'},
-'chess_slark11': {'cost': 1, 'level': 3, 'name': 'Slark'},
-'chess_sniper': {'cost': 3, 'level': 1, 'name': 'Sniper'},
-'chess_sniper1': {'cost': 3, 'level': 2, 'name': 'Sniper'},
-'chess_sniper11': {'cost': 3, 'level': 3, 'name': 'Sniper'},
+'chess_slark': {'cost': 3, 'level': 1, 'name': 'Slark'},
+'chess_slark1': {'cost': 3, 'level': 2, 'name': 'Slark'},
+'chess_slark11': {'cost': 3, 'level': 3, 'name': 'Slark'},
+'chess_sniper': {'cost': 2, 'level': 1, 'name': 'Sniper'},
+'chess_sniper1': {'cost': 2, 'level': 2, 'name': 'Sniper'},
+'chess_sniper11': {'cost': 2, 'level': 3, 'name': 'Sniper'},
 'chess_ss': {'cost': 1, 'level': 1, 'name': 'Shadow Shaman'},
 'chess_ss1': {'cost': 1, 'level': 2, 'name': 'Shadow Shaman'},
 'chess_ss11': {'cost': 1, 'level': 3, 'name': 'Shadow Shaman'},
@@ -543,18 +678,75 @@ var hero_dict = {'chess_abaddon': {'cost': 3, 'level': 1, 'name': 'Abaddon'},
 'chess_viper': {'cost': 3, 'level': 1, 'name': 'Viper'},
 'chess_viper1': {'cost': 3, 'level': 2, 'name': 'Viper'},
 'chess_viper11': {'cost': 3, 'level': 3, 'name': 'Viper'},
-'chess_wd': {'cost': 2, 'level': 1, 'name': 'Witch Doctor'},
-'chess_wd1': {'cost': 2, 'level': 2, 'name': 'Witch Doctor'},
-'chess_wd11': {'cost': 2, 'level': 3, 'name': 'Witch Doctor'},
-'chess_wr': {'cost': 3, 'level': 1, 'name': 'Windranger'},
-'chess_wr1': {'cost': 3, 'level': 2, 'name': 'Windranger'},
-'chess_wr11': {'cost': 3, 'level': 3, 'name': 'Windranger'},
+'chess_wd': {'cost': 1, 'level': 1, 'name': 'Witch Doctor'},
+'chess_wd1': {'cost': 1, 'level': 2, 'name': 'Witch Doctor'},
+'chess_wd11': {'cost': 1, 'level': 3, 'name': 'Witch Doctor'},
+'chess_wr': {'cost': 4, 'level': 1, 'name': 'Windranger'},
+'chess_wr1': {'cost': 4, 'level': 2, 'name': 'Windranger'},
+'chess_wr11': {'cost': 4, 'level': 3, 'name': 'Windranger'},
 'chess_ww': {'cost': 1, 'level': 1, 'name': 'Winter Wyvern'},
 'chess_ww1': {'cost': 1, 'level': 2, 'name': 'Winter Wyvern'},
 'chess_ww11': {'cost': 1, 'level': 3, 'name': 'Winter Wyvern'},
 'chess_zeus': {'cost': 5, 'level': 1, 'name': 'Zeus'},
 'chess_zeus1': {'cost': 5, 'level': 2, 'name': 'Zeus'},
-'chess_zeus11': {'cost': 5, 'level': 3, 'name': 'Zeus'}};
+'chess_zeus11': {'cost': 5, 'level': 3, 'name': 'Zeus'},
+'chess_snap': {'cost': 5, 'level': 1, 'name': 'Snapfire'},
+'chess_snap1': {'cost': 5, 'level': 2, 'name': 'Snapfire'},
+'chess_snap11': {'cost': 5, 'level': 3, 'name': 'Snapfire'},
+'chess_huskar': {'cost': 5, 'level': 1, 'name': 'Huskar'},
+'chess_huskar1': {'cost': 5, 'level': 2, 'name': 'Huskar'},
+'chess_huskar11': {'cost': 5, 'level': 3, 'name': 'Huskar'},
+'chess_bs': {'cost': 2, 'level': 1, 'name': 'Bloodseeker'},
+'chess_bs1': {'cost': 2, 'level': 2, 'name': 'Bloodseeker'},
+'chess_bs11': {'cost': 2, 'level': 3, 'name': 'Bloodseeker'},
+'chess_visage': {'cost': 5, 'level': 1, 'name': 'Visage'},
+'chess_visage1': {'cost': 5, 'level': 2, 'name': 'Visage'},
+'chess_visage11': {'cost': 5, 'level': 3, 'name': 'Visage'},
+'chess_rubick': {'cost': 3, 'level': 1, 'name': 'Rubick'},
+'chess_rubick1': {'cost': 3, 'level': 2, 'name': 'Rubick'},
+'chess_rubick11': {'cost': 3, 'level': 3, 'name': 'Rubick'},
+'chess_pudge': {'cost': 3, 'level': 1, 'name': 'Pudge'},
+'chess_pudge1': {'cost': 3, 'level': 2, 'name': 'Pudge'},
+'chess_pudge11': {'cost': 3, 'level': 3, 'name': 'Pudge'},
+// 'chess_lion': {'cost': 2, 'level': 1, 'name': 'Lion'},
+// 'chess_lion1': {'cost': 2, 'level': 2, 'name': 'Lion'},
+// 'chess_lion11': {'cost': 2, 'level': 3, 'name': 'Lion'},
+'chess_gs': {'cost': 4, 'level': 1, 'name': 'Grimstroke'},
+'chess_gs1': {'cost': 4, 'level': 2, 'name': 'Grimstroke'},
+'chess_gs11': {'cost': 4, 'level': 3, 'name': 'Grimstroke'},
+'chess_oracle': {'cost': 2, 'level': 1, 'name': 'Oracle'},
+'chess_oracle1': {'cost': 2, 'level': 2, 'name': 'Oracle'},
+'chess_oracle11': {'cost': 2, 'level': 3, 'name': 'Oracle'},
+'chess_na': {'cost': 4, 'level': 1, 'name': 'Nyx Assassin'},
+'chess_na1': {'cost': 4, 'level': 2, 'name': 'Nyx Assassin'},
+'chess_na11': {'cost': 4, 'level': 3, 'name': 'Nyx Assassin'},
+'chess_br': {'cost': 4, 'level': 1, 'name': 'Broodmother'},
+'chess_br1': {'cost': 4, 'level': 2, 'name': 'Broodmother'},
+'chess_br11': {'cost': 4, 'level': 3, 'name': 'Broodmother'},
+'chess_lc': {'cost': 3, 'level': 1, 'name': 'Legion Commander'},
+'chess_lc1': {'cost': 3, 'level': 2, 'name': 'Legion Commander'},
+'chess_lc11': {'cost': 3, 'level': 3, 'name': 'Legion Commander'},
+'chess_chen': {'cost': 4, 'level': 1, 'name': 'Chen'},
+'chess_chen1': {'cost': 4, 'level': 2, 'name': 'Chen'},
+'chess_chen11': {'cost': 4, 'level': 3, 'name': 'Chen'},
+'chess_dw': {'cost': 1, 'level': 1, 'name': 'Dark Willow'},
+'chess_dw1': {'cost': 1, 'level': 2, 'name': 'Dark Willow'},
+'chess_dw11': {'cost': 1, 'level': 3, 'name': 'Dark Willow'},
+'chess_thd': {'cost': 5, 'level': 1, 'name': 'Jakiro'},
+'chess_thd1': {'cost': 5, 'level': 2, 'name': 'Jakiro'},
+'chess_thd11': {'cost': 5, 'level': 3, 'name': 'Jakiro'},
+'chess_brew': {'cost': 2, 'level': 1, 'name': 'Brewmaster'},
+'chess_brew1': {'cost': 2, 'level': 2, 'name': 'Brewmaster'},
+'chess_brew2': {'cost': 2, 'level': 3, 'name': 'Brewmaster'},
+'chess_ember': {'cost': 2, 'level': 1, 'name': 'Storm Spirit'},
+'chess_ember1': {'cost': 2, 'level': 2, 'name': 'Storm Spirit'},
+'chess_ember2': {'cost': 2, 'level': 3, 'name': 'Storm Spirit'},
+'chess_storm': {'cost': 2, 'level': 1, 'name': 'Ember Spirit'},
+'chess_storm1': {'cost': 2, 'level': 2, 'name': 'Ember Spirit'},
+'chess_storm2': {'cost': 2, 'level': 3, 'name': 'Ember Spirit'}
+};
+
+
 
 var round_descriptions = {
     1 : '2 Creeps',
@@ -616,45 +808,46 @@ function OnShowTime(keys) {
 
         // Detect language
 
-        if (find_dota_hud_element('text_bullet_toggle').text== '显示弹幕') {
-            $.Msg('Chinese client detected')
+        // if (find_dota_hud_element('text_bullet_toggle').text== '显示聊天弹幕') {
+          $.Msg('Chinese client detected')
 
-            // Translate tier list
+          // Translate tier list
+          var tier_dict_cn = {};
+          Object.keys(tier_dict).forEach(function(key) {
+              tier_dict_cn[eng_to_cn[key]] = tier_dict[key];
+          });
+          tier_dict = tier_dict_cn;
 
-            var tier_dict_cn = {};
-            Object.keys(tier_dict).forEach(function(key) {
-                tier_dict_cn[eng_to_cn[key]] = tier_dict[key];
-            });
-            tier_dict = tier_dict_cn;
+          // Translate hero details
 
-            // Translate hero details
+          var hero_dict_cn = {}
+          Object.keys(hero_dict).forEach(function(key) {
+              hero_dict_cn[key] = hero_dict[key];
+              hero_dict_cn[key]['name'] = eng_to_cn[hero_dict_cn[key]['name']]
+          });
+          hero_dict = hero_dict_cn;
+          
+          //$.Msg(hero_dict)
 
-            var hero_dict_cn = {}
-            Object.keys(hero_dict).forEach(function(key) {
-                hero_dict_cn[key] = hero_dict[key];
-                hero_dict_cn[key]['name'] = eng_to_cn[hero_dict_cn[key]['name']]
-            });
-            hero_dict = hero_dict_cn;
-
-            //$.Msg(hero_dict)
-
-        } else {
-            $.Msg('English client detected')
-        }
+        // } else {
+        //     $.Msg('English client detected')
+        // }
 
         /*START-DRAWSTAT*/  
 
         size_cost_pool = get_total_size_of_pool(hero_counts, 1);
 
-        $.Each(hero_id_list, function(item) {
-            var tmp_ele = find_dota_hud_element(item);
-            if (tmp_ele) {
-                var tmp_ret = calculate_draw_prop(item, hero_counts, 1, size_cost_pool);
-                var hero_perc_avail = tmp_ret[0];
-                tmp_ele.text = hero_perc_avail + '%';
-                tmp_ele.style['color'] = tmp_ret[1];
-            } 
-        });
+        // $.Each(hero_id_list, function(item) {
+        //     var tmp_ele = find_dota_hud_element(item);
+        //     if (tmp_ele) {
+        //         var tmp_ret = calculate_draw_prop(item, hero_counts, 1, size_cost_pool);
+        //         var hero_perc_avail = tmp_ret[0];
+        //         tmp_ele.text = hero_perc_avail + '%';
+        //         tmp_ele.style['color'] = tmp_ret[1];
+        //     } 
+        // });
+        //Update display draw_prop method in Chess board.
+        update_list_draw_prop(hero_counts, size_cost_pool);
 
         /*END-DRAWSTAT*/  
 
@@ -662,8 +855,9 @@ function OnShowTime(keys) {
         local_player_team = Players.GetTeam(Players.GetLocalPlayer());
         user_steam_id = Game.GetPlayerInfo(Players.GetLocalPlayer()).player_steamid;
         courier_player_id = Game.GetPlayerInfo(Players.GetLocalPlayer()).player_id;
-        $.Msg('Steam ID:')
-        $.Msg(user_steam_id)
+        $.Msg('Steam ID:' + user_steam_id);
+        $.Msg('Player Team:' + local_player_team);
+        $.Msg('Player ID:' + courier_player_id);
 
         //get courier id and enemies steam_ids
         $.Each(Entities.GetAllHeroEntities(), function(entity) {
@@ -709,15 +903,17 @@ function OnBattleInfo(data) {
         hero_counts = getCurrentChamps();
         size_cost_pool = get_total_size_of_pool(hero_counts, courier_level_round);
 
-        $.Each(hero_id_list, function(item) {
-            var tmp_ele = find_dota_hud_element(item);
-            if (tmp_ele) {
-                var tmp_ret = calculate_draw_prop(item, hero_counts, courier_level_round, size_cost_pool);
-                var hero_perc_avail = tmp_ret[0];
-                tmp_ele.text = hero_perc_avail + '%';
-                tmp_ele.style['color'] = tmp_ret[1];
-            } 
-        });
+        // $.Each(hero_id_list, function(item) {
+        //     var tmp_ele = find_dota_hud_element(item);
+        //     if (tmp_ele) {
+        //         var tmp_ret = calculate_draw_prop(item, hero_counts, courier_level_round, size_cost_pool);
+        //         var hero_perc_avail = tmp_ret[0];
+        //         tmp_ele.text = hero_perc_avail + '%';
+        //         tmp_ele.style['color'] = tmp_ret[1];
+        //     } 
+        // });
+        //Update display draw_prop method in Chess board.
+        update_list_draw_prop(hero_counts, size_cost_pool);
 
     }
 
@@ -779,26 +975,29 @@ function OnShowDrawCard(keys){
 
         // Update list
 
-        $.Each(hero_id_list, function(item) {
-            var tmp_ele = find_dota_hud_element(item);
-            if (tmp_ele) {
-                var tmp_ret = calculate_draw_prop(item, hero_counts, courier_level, size_cost_pool);
-                var hero_perc_avail = tmp_ret[0];
-                tmp_ele.text = hero_perc_avail + '%';
-                tmp_ele.style['color'] = tmp_ret[1];
-            } 
-        });
+        // $.Each(hero_id_list, function(item) {
+        //     var tmp_ele = find_dota_hud_element(item);
+        //     if (tmp_ele) {
+        //         var tmp_ret = calculate_draw_prop(item, hero_counts, courier_level, size_cost_pool);
+        //         var hero_perc_avail = tmp_ret[0];
+        //         tmp_ele.text = hero_perc_avail + '%';
+        //         tmp_ele.style['color'] = tmp_ret[1];
+        //     } 
+        // });
+        //Update display draw_prop method in Chess board.
+        update_list_draw_prop(hero_counts, size_cost_pool);
 
         /*END-DRAWSTAT*/ 
 
         var times = 5;
         for(var i=0; i < times; i++){
-            var champ_name = find_dota_hud_element('panel_hero_draw_card_' + i).FindChild('text_draw_card_' + i).text.replace('★', '').trim();
+            // var champ_name = find_dota_hud_element('panel_hero_draw_card_' + i).FindChild('text_draw_card_' + i).text.replace('★', '').trim();
+            var champ_name = find_dota_hud_element('panel_draw_card_name_' + i).FindChild('text_draw_card_' + i).text.replace('★', '').trim();
             var champ_tier = tier_dict[champ_name];
             var parentPanel = find_dota_hud_element('panel_hero_draw_card_' + i);
             var costPanel = parentPanel.FindChild('text_draw_card_price_' + i);
             var hero_cost = parseInt(costPanel.text.replace('×', ''));
-            var hero_pool = hero_pool_counts[hero_cost];
+            var hero_pool = hero_pool_counts[hero_cost]; 
 
             if (!champ_tier) {
                 champ_tier = '?';
@@ -814,11 +1013,14 @@ function OnShowDrawCard(keys){
 
             var size_hero_cost_pool = size_cost_pool[hero_cost];
         
-            var num_hero_avail = hero_pool - hero_in_play;
-            var num_bad_draws = size_hero_cost_pool - num_hero_avail;
+            var num_hero_avail = hero_pool - hero_in_play; // 可用的该牌数量 = 该牌可能的最大数量 - 该牌已被抽取的数量
+            var num_bad_draws = size_hero_cost_pool - num_hero_avail; 
         
             var good_cost_prob = cost_draw_probs_by_level[courier_level][hero_cost];
             var bad_cost_prob = 1 - good_cost_prob;
+            
+            $.Msg(i+" card:");
+            $.Msg(hero_pool + " , " + hero_in_play + " , " + num_hero_avail + " , " + size_hero_cost_pool + " , " + num_bad_draws + " , " + good_cost_prob + " , " + bad_cost_prob)
         
             var prop_at_least_one = 1 - ((bad_cost_prob + (good_cost_prob * (num_bad_draws / size_hero_cost_pool))) * 
                                         (bad_cost_prob + (good_cost_prob * ((num_bad_draws - 1) / (size_hero_cost_pool - 1)))) * 
@@ -828,7 +1030,7 @@ function OnShowDrawCard(keys){
 
             var hero_perc_avail = Math.round(prop_at_least_one * 100);
 
-            if (champ_name == 'Io') {
+            if (champ_name == 'Io' || champ_name == '精灵守卫') {
                 hero_perc_avail = 1.5;
             }
 
@@ -895,7 +1097,7 @@ function DrawChessProbabilites() {
     }
     
 	
-    var probability_panel = '<Panel id="level_stats_panel" style="width: 290px; height: 149px; position:256px 934px 0px; background-color: gradient( linear, 0% 0%, 0% 100%, from( rgba(68, 68, 68, 0.95) ), to( rgba(22, 22, 22, 0.95) ) ); border-radius: 4px 4px 0px 0px; z-index: -200;" />';
+    var probability_panel = '<Panel id="level_stats_panel" style="width: 260px; height: 149px; position:248px 934px 0px; background-color: gradient( linear, 0% 0%, 0% 100%, from( rgba(68, 68, 68, 0.95) ), to( rgba(22, 22, 22, 0.95) ) ); border-radius: 4px 4px 0px 0px; z-index: -200;" />';
     hudRoot.BCreateChildren(probability_panel);
 
     var level_probability_panel = '<Panel id ="chess_probability" style="width: 100%; flow-children: down; vertical-align: top; margin-top: 6px;"/>';
@@ -975,8 +1177,8 @@ function OnXPGained() {
 }
 
 function UpdateXPGoldText(xp_required) {
-    find_dota_hud_element('xp-required-text').text =
-        xp_required + 'XP (' + Math.ceil(xp_required/4)*5 + ' GOLD) TO LEVEL UP';
+    find_dota_hud_element('xp-required-text').text = 
+        xp_required + 'XP (' + Math.ceil(xp_required/4)*4 + ' GOLD) TO LEVEL UP !';
 }
 
 function UpdateProbabilityTextForLevel(level) {
