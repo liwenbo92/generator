@@ -8,3 +8,6 @@ utils/dota2_decompiler/*
 utils/vpk_packager/*
 !utils/vpk_packager/README.txt
 
+# Back up files
+*.bak
+
